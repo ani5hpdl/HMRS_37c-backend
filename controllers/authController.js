@@ -62,7 +62,7 @@ const register = async(req,res) => {
         });
 
     }catch(error){
-        res.status(500).json({
+        return res.status(500).json({
             message : "Error while Registering User",
             error : error.message
         });
@@ -128,7 +128,7 @@ const login = async(req,res) => {
         });
 
     }catch(error){
-        res.status(500).json({
+        return res.status(500).json({
             message : "Error while Logging",
             error : error.message
         });
@@ -188,7 +188,7 @@ const verifyEmail = async(req,res) => {
         });
 
     }catch(error){
-        res.status(500).json({
+        return res.status(500).json({
             message : "Error while Verifying Email",
             error : error.message
         });

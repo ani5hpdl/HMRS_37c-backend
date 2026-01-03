@@ -5,6 +5,10 @@ const app = express();
 app.get("/",(req,res) =>{
     res.json({message: "Welcome to the Home Page"});
 });
+app.use(express.json());
+app.use(require('./helpers/authMiddleware'));
+app.use("/api/admin",require('./routes/adminRoutes'))
+app.use("/api/user",require('./routes/authRoutes'))
 
 const startServer = async () => {
     await connectDB();
