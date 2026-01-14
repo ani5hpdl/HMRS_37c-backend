@@ -1,10 +1,12 @@
 const { createUser, getUserById, getAllUsers, updateUser, deleteUser } = require("../controllers/userController");
+const authMiddleware = require("../helpers/authMiddleware");
+const isAdmin = require("../helpers/isAdmin");
 const express = require("express").Router();
 
-express.post("/createUser",createUser);
-express.get("/getUserById/:id",getUserById);
-express.get("/getAllUsers",getAllUsers);
-express.post("/updateUserById/:uid",updateUser);
-express.get("/deleteUser/:did",deleteUser);
+express.post("/createUser",authMiddleware,isAdmin,createUser);
+express.get("/getUserById/:id",authMiddleware,isAdmin,getUserById);
+express.get("/getAllUsers",authMiddleware,isAdmin,getAllUsers);
+express.post("/updateUserById/:uid",authMiddleware,isAdmin,updateUser);
+express.get("/deleteUser/:did",authMiddleware,isAdmin,deleteUser);
 
 module.exports=express;
