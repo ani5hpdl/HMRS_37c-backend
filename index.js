@@ -9,6 +9,7 @@ app.use(express.json());
 app.use(require('./helpers/authMiddleware'));
 app.use("/api/admin",require('./routes/adminRoutes'))
 app.use("/api/user",require('./routes/authRoutes'))
+app.use("/api/rooms",require('./routes/roomRoutes'))
 
 const startServer = async () => {
     await connectDB();
