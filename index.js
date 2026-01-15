@@ -10,6 +10,7 @@ app.use(require('./helpers/authMiddleware'));
 app.use("/api/admin",require('./routes/adminRoutes'))
 app.use("/api/user",require('./routes/authRoutes'))
 app.use("/api/rooms",require('./routes/roomRoutes'))
+app.use("/api/reservations",require('./routes/reservationsRoutes'))
 
 const startServer = async () => {
     await connectDB();
