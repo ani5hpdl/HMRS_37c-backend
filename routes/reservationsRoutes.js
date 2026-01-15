@@ -4,16 +4,32 @@ const isAdmin = require("../helpers/isAdmin");
 
 const express = require("express").Router();
 
-express.post("/createReservations",authMiddleware,createReservation);
-express.post("/getMyReservations",authMiddleware,getMyReservations);
-express.post("/getReservationsById/:id",authMiddleware,getReservationsById);
-express.post("/updateMyReservations/:id",authMiddleware,updateMyReservations);
-express.post("/cancelMyReservation/:id",authMiddleware,cancelMyReservation);
+// Create a reservation
+router.post("/reservations", authMiddleware, createReservation);
 
-express.post("/getallReservations",authMiddleware,isAdmin,getallReservations);
-express.post("/updateReservation/:id",authMiddleware,isAdmin,updateReservation);
-express.post("/deleteReservation/:id",authMiddleware,isAdmin,deleteReservation);
-express.post("/getReservationsByRoom/:id",authMiddleware,isAdmin,getReservationsByRoom);
+// Get my reservations
+router.get("/reservations/me", authMiddleware, getMyReservations);
+
+// Get reservation by ID (my own or admin access)
+router.get("/reservations/:id", authMiddleware, getReservationsById);
+
+// Update my reservation
+router.put("/reservations/me/:id", authMiddleware, updateMyReservations);
+
+// Cancel my reservation
+router.patch("/reservations/me/:id/cancel", authMiddleware, cancelMyReservation);
+
+// Get all reservations
+router.get("/admin/reservations", authMiddleware, isAdmin, getallReservations);
+
+// Update reservation status/payment
+router.put("/admin/reservations/:id", authMiddleware, isAdmin, updateReservation);
+
+// Delete reservation
+router.delete("/admin/reservations/:id", authMiddleware, isAdmin, deleteReservation);
+
+// Get reservations by room
+router.get("/admin/reservations/room/:id", authMiddleware, isAdmin, getReservationsByRoom);
 
 
 module.exports=express;
