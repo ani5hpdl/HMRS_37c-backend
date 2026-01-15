@@ -194,11 +194,73 @@ const deleteRoom = async (req, res) => {
   }
 };
 
+const getAvailableRooms = async (req, res) => {
+  try {
+    const { checkInDate, checkOutDate, maxGuests, viewType } = req.query;
+
+    if (!checkInDate || !checkOutDate) {
+      return res.status(400).json({
+        success: false,
+        message: "checkInDate and checkOutDate are required",
+      });
+    }
+
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+
+    if (checkOut <= checkIn) {
+      return res.status(400).json({
+        success: false,
+        message: "checkOutDate must be after checkInDate",
+      });
+    }
+
+    // Step 1: Find rooms that have conflicting reservations
+    const bookedRooms = await Reservation.findAll({
+      attributes: ["roomId"],
+      where: {
+        [Op.and]: [
+          { checkInDate: { [Op.lt]: checkOut } },
+          { checkOutDate: { [Op.gt]: checkIn } },
+        ],
+      },
+    });
+
+    const bookedRoomIds = bookedRooms.map((r) => r.roomId);
+
+    // Step 2: Find all rooms that are active and not booked
+    const whereClause = {
+      isActive: true,
+      id: { [Op.notIn]: bookedRoomIds },
+    };
+
+    if (maxGuests) whereClause.maxGuests = { [Op.gte]: maxGuests };
+    if (viewType) whereClause.viewType = viewType;
+
+    const availableRooms = await Room.findAll({
+      where: whereClause,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Available rooms fetched successfully",
+      data: availableRooms,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch available rooms",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
     createRooms,
     getAllRooms,
     getRoomById,
     updateRoom,
     deactivateRoom,
-    deleteRoom
+    deleteRoom,
+    getAvailableRooms
 }
