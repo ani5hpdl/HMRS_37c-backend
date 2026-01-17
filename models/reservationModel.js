@@ -24,7 +24,7 @@ const Reservation = sequelize.define(
     },
 
     roomId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
       references: {
         model: "rooms",

@@ -1,6 +1,7 @@
 const express = require("express");
 const { sequelize, connectDB } = require("./database/Database")
 const app = express();
+require("./models"); // IMPORTANT: loads associations
 
 app.get("/",(req,res) =>{
     res.json({message: "Welcome to the Home Page"});

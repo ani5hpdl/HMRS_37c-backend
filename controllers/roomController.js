@@ -1,86 +1,66 @@
-const Room = require("../models/roomModel");
+const { Op } = require("sequelize");
+const { Room, RoomType, RoomAmenity, Reservation } = require("../models");
 
-const createRooms = async(req,res) => {
-    const {name,description,bedType,pricePerNight,hasBalcony,hasWorkDesk,viewType,wifi,airConditioning,flatScreenTV,miniFridge,coffeeTeaMaker,ensuiteBathroom,bathtub} = req.body;
-    if(!name || !description || !bedType || !pricePerNight || !hasBalcony || !viewType){
-        return res.status(400).json({
-            success : false,
-            message : "All Fields are Required"
-        });
+// Create a new room
+const createRooms = async (req, res) => {
+  const { roomTypeId, maxGuests } = req.body;
+
+  if (!roomTypeId || !maxGuests) {
+    return res.status(400).json({
+      success: false,
+      message: "roomTypeId and maxGuests are required",
+    });
+  }
+
+  try {
+    // Check if RoomType exists
+    const roomType = await RoomType.findByPk(roomTypeId);
+    if (!roomType) {
+      return res.status(404).json({
+        success: false,
+        message: "RoomType not found",
+      });
     }
 
-    let roomSize;
-    let maxGuests;
-    if(name == "Junior Suite"){
-        roomSize = 36
-        maxGuests = 4
-    }else if(name == "Executive Suite"){
-        roomSize = 42
-        maxGuests = 4
-    }else{
-        roomSize = 28
-        maxGuests = 2
-    }
+    // Create room
+    const newRoom = await Room.create({
+      roomTypeId,
+      maxGuests,
+      isActive: true,
+    });
 
-    try {
-        const newRoom = await Room.create({
-            name,
-            description,
-            roomSize,
-            bedType,
-            maxGuests,
-            pricePerNight,
-            hasBalcony,
-            hasWorkDesk,
-            viewType,
-            wifi,
-            airConditioning,
-            flatScreenTV,
-            miniFridge,
-            coffeeTeaMaker,
-            ensuiteBathroom,
-            bathtub
-        });
+    return res.status(201).json({
+      success: true,
+      message: "Room created successfully",
+      data: newRoom,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Error while adding room",
+      error: error.message,
+    });
+  }
+};
 
-        return res.status(201).json({
-            success :  true,
-            message : "Room Created Sucessfully!!",
-            data : {newRoom}
-        });
-
-    } catch (error) {
-        return res.status(500).json({
-            success : false,
-            message : "Error While adding Rooms",
-            error : error.message
-        });
-    }
-}
-
+// Get all rooms with RoomType and Amenities
 const getAllRooms = async (req, res) => {
   try {
     const { isActive, maxGuests, viewType } = req.query;
-
     const whereClause = {};
+    if (isActive !== undefined) whereClause.isActive = isActive === "true";
+    if (maxGuests) whereClause.maxGuests = maxGuests;
 
-    if (isActive !== undefined) {
-      whereClause.isActive = isActive === "true";
-    }
-
-    if (maxGuests) {
-      whereClause.maxGuests = maxGuests;
-    }
-
-    if (viewType) {
-      whereClause.viewType = viewType;
-    }
-
-    const rooms = await Room.findAll({ where: whereClause });
-
-    return res.status(200).json({
-      success: true,
-      data: rooms,
+    const rooms = await Room.findAll({
+      where: whereClause,
+      include: {
+        model: RoomType,
+        include: RoomAmenity,
+        ...(viewType ? { where: { viewType } } : {}),
+      },
     });
+
+    return res.status(200).json({ success: true, data: rooms });
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -90,9 +70,15 @@ const getAllRooms = async (req, res) => {
   }
 };
 
+// Get room by ID with RoomType and Amenities
 const getRoomById = async (req, res) => {
   try {
-    const room = await Room.findByPk(req.params.id);
+    const room = await Room.findByPk(req.params.id, {
+      include: {
+        model: RoomType,
+        include: RoomAmenity,
+      },
+    });
 
     if (!room) {
       return res.status(404).json({
@@ -101,10 +87,7 @@ const getRoomById = async (req, res) => {
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      data: room,
-    });
+    return res.status(200).json({ success: true, data: room });
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -114,18 +97,25 @@ const getRoomById = async (req, res) => {
   }
 };
 
+// Update room (only maxGuests or roomType)
 const updateRoom = async (req, res) => {
   try {
     const room = await Room.findByPk(req.params.id);
+    if (!room) return res.status(404).json({ success: false, message: "Room not found" });
 
-    if (!room) {
-      return res.status(404).json({
-        success: false,
-        message: "Room not found",
-      });
+    const { roomTypeId, maxGuests } = req.body;
+
+    if (roomTypeId) {
+      const roomType = await RoomType.findByPk(roomTypeId);
+      if (!roomType) {
+        return res.status(404).json({ success: false, message: "RoomType not found" });
+      }
+      room.roomTypeId = roomTypeId;
     }
 
-    await room.update(req.body);
+    if (maxGuests) room.maxGuests = maxGuests;
+
+    await room.save();
 
     return res.status(200).json({
       success: true,
@@ -141,24 +131,16 @@ const updateRoom = async (req, res) => {
   }
 };
 
+// Deactivate room
 const deactivateRoom = async (req, res) => {
   try {
     const room = await Room.findByPk(req.params.id);
-
-    if (!room) {
-      return res.status(404).json({
-        success: false,
-        message: "Room not found",
-      });
-    }
+    if (!room) return res.status(404).json({ success: false, message: "Room not found" });
 
     room.isActive = false;
     await room.save();
 
-    return res.status(200).json({
-      success: true,
-      message: "Room deactivated successfully",
-    });
+    return res.status(200).json({ success: true, message: "Room deactivated successfully" });
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -166,25 +148,17 @@ const deactivateRoom = async (req, res) => {
       error: error.message,
     });
   }
-}; 
+};
 
+// Delete room permanently
 const deleteRoom = async (req, res) => {
   try {
     const room = await Room.findByPk(req.params.id);
-
-    if (!room) {
-      return res.status(404).json({
-        success: false,
-        message: "Room not found",
-      });
-    }
+    if (!room) return res.status(404).json({ success: false, message: "Room not found" });
 
     await room.destroy();
 
-    return res.status(200).json({
-      success: true,
-      message: "Room deleted permanently",
-    });
+    return res.status(200).json({ success: true, message: "Room deleted permanently" });
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -194,6 +168,7 @@ const deleteRoom = async (req, res) => {
   }
 };
 
+// Get available rooms
 const getAvailableRooms = async (req, res) => {
   try {
     const { checkInDate, checkOutDate, maxGuests, viewType } = req.query;
@@ -215,7 +190,7 @@ const getAvailableRooms = async (req, res) => {
       });
     }
 
-    // Step 1: Find rooms that have conflicting reservations
+    // Find booked rooms
     const bookedRooms = await Reservation.findAll({
       attributes: ["roomId"],
       where: {
@@ -228,17 +203,17 @@ const getAvailableRooms = async (req, res) => {
 
     const bookedRoomIds = bookedRooms.map((r) => r.roomId);
 
-    // Step 2: Find all rooms that are active and not booked
-    const whereClause = {
-      isActive: true,
-      id: { [Op.notIn]: bookedRoomIds },
-    };
-
+    const whereClause = { isActive: true, id: { [Op.notIn]: bookedRoomIds } };
     if (maxGuests) whereClause.maxGuests = { [Op.gte]: maxGuests };
-    if (viewType) whereClause.viewType = viewType;
 
+    // Fetch available rooms including RoomType & Amenities
     const availableRooms = await Room.findAll({
       where: whereClause,
+      include: {
+        model: RoomType,
+        include: RoomAmenity,
+        ...(viewType ? { where: { viewType } } : {}),
+      },
     });
 
     return res.status(200).json({
@@ -256,11 +231,11 @@ const getAvailableRooms = async (req, res) => {
 };
 
 module.exports = {
-    createRooms,
-    getAllRooms,
-    getRoomById,
-    updateRoom,
-    deactivateRoom,
-    deleteRoom,
-    getAvailableRooms
-}
+  createRooms,
+  getAllRooms,
+  getRoomById,
+  updateRoom,
+  deactivateRoom,
+  deleteRoom,
+  getAvailableRooms,
+};
