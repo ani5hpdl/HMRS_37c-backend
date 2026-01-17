@@ -7,10 +7,12 @@ app.get("/",(req,res) =>{
     res.json({message: "Welcome to the Home Page"});
 });
 app.use(express.json());
-app.use(require('./helpers/authMiddleware'));
+// app.use(require('./helpers/authMiddleware'));
 app.use("/api/admin",require('./routes/adminRoutes'))
 app.use("/api/user",require('./routes/authRoutes'))
 app.use("/api/rooms",require('./routes/roomRoutes'))
+app.use("/api/room-types", require("./routes/roomTypeRoutes"));
+app.use("/api/room-amenities", require("./routes/roomAmenityRoutes"));
 app.use("/api/reservations",require('./routes/reservationsRoutes'))
 
 const startServer = async () => {
