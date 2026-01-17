@@ -1,6 +1,5 @@
 const { Op } = require("sequelize");
-const { Room, RoomType, RoomAmenity } = require("../models");
-const {Reservation} = require("../models/reservationModel");
+const { Reservation, Room, RoomType, RoomAmenity } = require("../models");
 
 // ----------------------------
 // CREATE RESERVATION
