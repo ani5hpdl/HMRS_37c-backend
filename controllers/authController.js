@@ -223,7 +223,7 @@ const forgotPassword = async(req, res) =>{
         //link inside email
         const verifyLink = `http://localhost:3000/api/user/reset-password?token=${verificationToken}`;
 
-        const html = verificationEmailTemplate("gautam",verifyLink);
+        const html = verificationEmailTemplate("email",verifyLink);
 
         //Send Email  to the user email to verify 
         const isEmailSent = sendEmail(email,"Verification Email",html);
