@@ -72,19 +72,29 @@ const register = async(req,res) => {
 const login = async(req,res) => {
     try{
         const {email,password} = req.body;
+        console.log(req.body);
         if(!email || !password){
             return res.status(400).json({
+                success : false,
                 message : "All Fields are Required"
             });
         }
 
         const fetchUser = await User.findOne({where: {email}});
 
+        if(!fetchUser){
+            return res.status(400).json({
+                success : false,
+                message : "Password and Email Doesnot Match!!"
+            });
+        }
+
         //compare Password
         const isValidUser = await bcrypt.compare(password,fetchUser.password);
 
-        if(isValidUser){
+        if(!isValidUser){
             return res.status(400).json({
+                success : false,
                 message : "Password and Email Doesnot Match!!"
             });
         }
@@ -104,17 +114,20 @@ const login = async(req,res) => {
 
             if(!isEmailSent){
                 return res.status(400).json({
+                    success : false,
                     message : "Error while sending Verification Code"
                 });
             }
 
             return res.status(400).json({
+                success : false,
                 message : "Your Mail isnot Verified!! Go back to your Mail and Try Verifying!!"
             });
         }
 
         if(!fetchUser.isActive){
             return res.status(400).json({
+                success : false,
                 message : "No User Found"
             });
         }
@@ -123,12 +136,14 @@ const login = async(req,res) => {
         const token = generateToken(fetchUser.id,fetchUser.role);
 
         return res.status(200).json({
+            success : true,
             message : "User Login Sucessfully",
             token : token
         });
 
     }catch(error){
         return res.status(500).json({
+            success : false,
             message : "Error while Logging",
             error : error.message
         });

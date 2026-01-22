@@ -1,7 +1,13 @@
 const express = require("express");
 const { sequelize, connectDB } = require("./database/Database")
 const app = express();
+const cors = require('cors'); 
 require("./models"); // IMPORTANT: loads associations
+
+app.use(cors({
+    origin : ["http://localhost:5173","http://localhost:5174"],
+    credentials : true
+}));
 
 app.get("/",(req,res) =>{
     res.json({message: "Welcome to the Home Page"});
