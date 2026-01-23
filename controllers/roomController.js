@@ -47,28 +47,40 @@ const createRooms = async (req, res) => {
 const getAllRooms = async (req, res) => {
   try {
     const { isActive, maxGuests, viewType } = req.query;
+
     const whereClause = {};
     if (isActive !== undefined) whereClause.isActive = isActive === "true";
     if (maxGuests) whereClause.maxGuests = maxGuests;
 
     const rooms = await Room.findAll({
       where: whereClause,
-      include: {
-        model: RoomType,
-        include: RoomAmenity,
-        ...(viewType ? { where: { viewType } } : {}),
-      },
+      include: [
+        {
+          model: RoomType,
+          ...(viewType ? { where: { viewType } } : {}),
+          include: [
+            {
+              model: RoomAmenity,
+              as: "amenities" // ✅ MUST MATCH ASSOCIATION
+            }
+          ]
+        }
+      ]
     });
 
-    return res.status(200).json({ success: true, data: rooms });
+    return res.status(200).json({
+      success: true,
+      data: rooms
+    });
   } catch (error) {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch rooms",
-      error: error.message,
+      error: error.message
     });
   }
 };
+
 
 // Get room by ID with RoomType and Amenities
 const getRoomById = async (req, res) => {
@@ -209,11 +221,18 @@ const getAvailableRooms = async (req, res) => {
     // Fetch available rooms including RoomType & Amenities
     const availableRooms = await Room.findAll({
       where: whereClause,
-      include: {
-        model: RoomType,
-        include: RoomAmenity,
-        ...(viewType ? { where: { viewType } } : {}),
-      },
+      include: [
+        {
+          model: RoomType,
+          include: [
+            {
+              model: RoomAmenity,
+              as: 'amenities', // Ensure the alias is correctly defined here
+            }
+          ],
+          ...(viewType ? { where: { viewType } } : {}),
+        }
+      ],
     });
 
     return res.status(200).json({

@@ -1,10 +1,11 @@
 const RoomType = require("../models/roomTypeModel");
 const RoomAmenity = require("../models/roomAmenityModel");
+const Room = require('../models/roomModel');
 
 // Create a new RoomType
 const createRoomType = async (req, res) => {
   try {
-    const { name, description, roomSize, bedType, viewType, pricePerNight } = req.body;
+    const { name, description, roomSize, bedType, viewType, pricePerNight, amenities } = req.body;
 
     if (!name || !description || !bedType || !pricePerNight) {
       return res.status(400).json({ success: false, message: "Required fields missing" });
@@ -15,7 +16,13 @@ const createRoomType = async (req, res) => {
       return res.status(409).json({ success: false, message: "RoomType already exists" });
     }
 
+    // Create RoomType first
     const roomType = await RoomType.create({ name, description, roomSize, bedType, viewType, pricePerNight });
+
+    // Create amenities if provided
+    if (amenities) {
+      await RoomAmenity.create({ roomTypeId: roomType.id, ...amenities });
+    }
 
     return res.status(201).json({ success: true, message: "RoomType created", data: roomType });
   } catch (error) {
@@ -39,10 +46,23 @@ const getAllRoomTypes = async (req, res) => {
 const updateRoomType = async (req, res) => {
   try {
     const { id } = req.params;
+    const { amenities, ...roomTypeData } = req.body;
+
     const roomType = await RoomType.findByPk(id);
     if (!roomType) return res.status(404).json({ success: false, message: "RoomType not found" });
 
-    await roomType.update(req.body);
+    await roomType.update(roomTypeData);
+
+    if (amenities) {
+      // Check if amenities exist
+      const existingAmenity = await RoomAmenity.findOne({ where: { roomTypeId: id } });
+      if (existingAmenity) {
+        await existingAmenity.update(amenities);
+      } else {
+        await RoomAmenity.create({ roomTypeId: id, ...amenities });
+      }
+    }
+
     return res.status(200).json({ success: true, message: "RoomType updated", data: roomType });
   } catch (error) {
     return res.status(500).json({ success: false, message: "Error updating RoomType", error: error.message });
@@ -54,7 +74,17 @@ const deleteRoomType = async (req, res) => {
   try {
     const { id } = req.params;
     const roomType = await RoomType.findByPk(id);
-    if (!roomType) return res.status(404).json({ success: false, message: "RoomType not found" });
+    if (!roomType) 
+      return res.status(404).json({ success: false, message: "RoomType not found" });
+
+    // Check if any rooms reference this RoomType
+    const roomsUsingType = await Room.count({ where: { roomTypeId: id } });
+    if (roomsUsingType > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Cannot delete RoomType because it is assigned to existing rooms." 
+      });
+    }
 
     await roomType.destroy();
     return res.status(200).json({ success: true, message: "RoomType deleted" });

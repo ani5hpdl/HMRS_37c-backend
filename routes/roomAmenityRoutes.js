@@ -11,15 +11,15 @@ const authMiddleware = require("../helpers/authMiddleware");
 const isAdmin = require("../helpers/isAdmin");
 
 // Create amenities for a RoomType (Admin only)
-router.post("/", authMiddleware, isAdmin, createRoomAmenity);
+router.post("/createAmenity", authMiddleware, isAdmin, createRoomAmenity);
 
 // Get amenities by RoomType ID
 router.get("/:roomTypeId", authMiddleware, getAmenitiesByRoomType);
 
 // Update amenities (Admin only)
-router.put("/:roomTypeId", authMiddleware, isAdmin, updateAmenities);
+router.put("/updateAmenity/:roomTypeId", authMiddleware, isAdmin, updateAmenities);
 
 // Delete amenities (Admin only)
-router.delete("/:roomTypeId", authMiddleware, isAdmin, deleteAmenities);
+router.delete("/delete/:roomTypeId", authMiddleware, isAdmin, deleteAmenities);
 
 module.exports = router;
