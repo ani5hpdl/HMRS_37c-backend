@@ -158,10 +158,12 @@ const logout = async(req,res) => {
         });
 
         res.status(200).json({
+            success : true,
             message : "User Logged Out Sucessfully"
         });
     }catch(error){
         res.status(500).json({
+            success : false,
             message : "Error while Logging Out",
             error : error.message
         });
@@ -174,6 +176,7 @@ const verifyEmail = async(req,res) => {
         const {token} = req.query;
         if(!token){
             return res.status(404).json({
+                success : false,
                 message : "Token is Missing"
             });
         }
@@ -181,12 +184,14 @@ const verifyEmail = async(req,res) => {
         const fetchUser =await User.findOne({where :{verificationToken : token}});
         if(!fetchUser){
             return res.status(404).json({
+                success : false,
                 message : "Invalid Token"
             });
         }
 
         if(fetchUser.verificationExpiresIn < new Date()){
             return res.status(400).json({
+                success : false,
                 message : "User Token Exipres! Please Try Logging in!!"
             });
         }
@@ -199,17 +204,45 @@ const verifyEmail = async(req,res) => {
         await fetchUser.save();
 
         return res.status(200).json({
+            success : true,
             message : "User Verified Sucessfully"
         });
 
     }catch(error){
         return res.status(500).json({
+            success : false,
             message : "Error while Verifying Email",
             error : error.message
         });
     }
 }
 
+const getMe = async(req,res) => {
+    try{
+        const userId = req.user.id;
+        const fetchUser = await User.findByPk(userId,{
+            attributes : ['id','name','email','role','isActive','isEmailVerified']
+        });
+        if(!fetchUser){
+            return res.status(404).json({
+                success : false,
+                message : "User Not Found"
+            });
+        }
+        return res.status(200).json({
+            success : true,
+            data : fetchUser
+        });
+    }catch(error){
+        return res.status(500).json({
+            success : false,
+            message : "Error while fetching User Data",
+            error : error.message
+        });
+    }
+}
+
+
 module.exports = {
-    register,login,logout,verifyEmail
+    register,login,logout,verifyEmail,getMe
 }

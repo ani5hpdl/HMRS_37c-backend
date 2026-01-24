@@ -9,6 +9,7 @@ const createUser = async(req,res) => {
 
         if(!name || !email || !password || !role){
             return res.status(400).res.json({
+                success: false,
                 message : "All Fields are required!!"
             });
         }
@@ -16,6 +17,7 @@ const createUser = async(req,res) => {
         const isEmailExist = await User.findOne({where: {email}});
         if(isEmailExist){
             return res.status(409).json({
+                success: false,
                 message : "Email is Already in Use!"
             });
         }
@@ -35,10 +37,13 @@ const createUser = async(req,res) => {
         const token = generateToken(newUser.id,newUser.role,res);
 
         return res.status(200).json({
+            success: true,
+            data :newUser,
             message : "New User is Created by Admin"
         });
     }catch(error){
         res.status(500).json({
+            success: false,
             message : "Error while creating user!",
             error : error.message
         })
@@ -50,6 +55,7 @@ const getUserById = async(req,res) => {
 
         if(id == null){
             return res.status(400).json({
+                success: false,
                 message : "Please provide userId to Fetch"
             });
         }
@@ -58,11 +64,13 @@ const getUserById = async(req,res) => {
 
         if(!fetchUser){
             return res.status(404).json({
+                success: false,
                 message : "User Not Found"
             });
         }
 
         return res.status(200).json({
+            success: true,
             message : "User Available",
             data : {
                 name : fetchUser.name,
@@ -73,6 +81,7 @@ const getUserById = async(req,res) => {
         });
     }catch(error){
         return res.status(500).json({
+            success: false,
             message : "Error while fetching data",
             error : error.message
         });
@@ -80,21 +89,22 @@ const getUserById = async(req,res) => {
 }
 const getAllUsers = async(req,res) => {
     try{
-        const allUsers =await User.findAll({attributes: ['name','email','role','isActive','isEmailVerified']});
+        const allUsers =await User.findAll({attributes: ['id','name','email','role','isActive','isEmailVerified']});
         if(!allUsers){
             return res.status(404).json({
+                success: false,
                 message : "No Users Found"
             });
         }
 
         return res.status(200).json({
+            success: true,
             message : "All Users Fetched Sucessfully",
-            data : {
-                allUsers
-            }
-        })
+            data : allUsers
+        });
     }catch(error){
         return res.status(500).json({
+            success: false,
             message : "Error While Fetching all Users",
             error : error.message
         });
@@ -105,6 +115,7 @@ const updateUser = async(req,res) => {
         const id = req.params.uid;
         if(!id){
             return res.status(400).json({
+                success: false,
                 message : "Please Provide us UserId"
             });
         }
@@ -112,6 +123,7 @@ const updateUser = async(req,res) => {
         const user =await User.findByPk(id);
         if(!user){
             return res.status(404).json({
+                success: false,
                 message : "User Not Found"
             });
         }
@@ -122,6 +134,7 @@ const updateUser = async(req,res) => {
               const isEmailExist = await User.findOne({where: {email}});
             if(isEmailExist){
                 return res.status(409).json({
+                    success: false,
                     message : "Email is Already in Use!"
                 });
             }
@@ -136,6 +149,7 @@ const updateUser = async(req,res) => {
         });
 
         return res.status(200).json({
+            success: true,
             message : "User Updated Successfully",
             data : {
                 name : user.name,
@@ -148,6 +162,7 @@ const updateUser = async(req,res) => {
         
     }catch(error){
         return res.status(500).json({
+            success: false,
             message : "Error While Updating User",
             error : error.message
         })
@@ -160,6 +175,7 @@ const deleteUser = async(req,res) => {
         const user =await User.findByPk(id);
         if(!user){
             return res.status(400).json({
+                success: false,
                 message : "No User Found"
             });
         }
@@ -168,10 +184,12 @@ const deleteUser = async(req,res) => {
         await user.save();
 
         return res.status(200).json({
+            success: true,
             message : "User Deleted Sucessfully"
         });
     } catch (error) {
         return res.status(500).json({
+            success: false,
             message : "Error while deleting user",
             error : error.message
         });
