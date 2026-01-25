@@ -5,33 +5,41 @@ const { Reservation, Room, RoomType, RoomAmenity } = require("../models");
 // CREATE RESERVATION
 // ----------------------------
 const createReservation = async (req, res) => {
+  console.log("Create Reservation Request Body:", req.body);
+
   try {
-    const { roomId, specialRequest, checkInDate, checkOutDate, totalGuests } = req.body;
+    // Extract guest information from the request body
+    const { guestName, guestEmail, guestContact, roomId, specialRequest, checkInDate, checkOutDate, totalGuests } = req.body;
 
     // Validate required fields
-    if (!roomId || !checkInDate || !checkOutDate || !totalGuests) {
+    if (!guestName || !guestEmail || !guestContact || !roomId || !checkInDate || !checkOutDate || !totalGuests) {
       return res.status(400).json({ success: false, message: "All fields are required!" });
     }
 
-    // Validate UUID
+    // Validate UUID format for roomId
     if (!roomId.match(/^[0-9a-fA-F-]{36}$/)) {
       return res.status(400).json({ success: false, message: "Invalid roomId format" });
     }
 
     // Fetch room with type & amenities
     const room = await Room.findByPk(roomId, {
-      include: { model: RoomType, include: RoomAmenity }
+      include: {
+        model: RoomType,
+        include: {
+          model: RoomAmenity,
+          as: "amenities"
+        }
+      }
     });
 
     if (!room) return res.status(404).json({ success: false, message: "Room not found" });
 
-    // Parse dates
+    // Parse dates and validate check-in/check-out dates
     const checkIn = new Date(checkInDate);
     const checkOut = new Date(checkOutDate);
-    if (checkOut <= checkIn)
-      return res.status(400).json({ success: false, message: "Check-out must be after check-in" });
+    if (checkOut <= checkIn) return res.status(400).json({ success: false, message: "Check-out must be after check-in" });
 
-    // Check overlapping reservations
+    // Check for overlapping reservations
     const existingReservation = await Reservation.findOne({
       where: {
         roomId,
@@ -46,14 +54,21 @@ const createReservation = async (req, res) => {
       return res.status(409).json({ success: false, message: "Room is already reserved for these dates" });
     }
 
-    // Calculate nights and total price
+    // Calculate number of nights and total price
     const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
     const totalPrice = parseFloat(room.RoomType.pricePerNight) * nights;
 
-    // Create reservation
+    // Track the admin's details
+    const adminName = req.user.name;
+    const adminEmail = req.user.email;
+
+    // Create reservation with guest and admin details
     const newReservation = await Reservation.create({
-      guestName: req.user.name,
-      guestEmail: req.user.email,
+      guestName,        // guest's name passed from frontend
+      guestEmail,
+      guestContact,     // guest's email passed from frontend
+      addedBy: adminName,        // admin's name (optional)
+      addedWith: adminEmail,       // admin's email (optional)
       roomId,
       specialRequest,
       checkInDate: checkIn,
@@ -70,6 +85,7 @@ const createReservation = async (req, res) => {
     });
 
   } catch (error) {
+    console.error(error);
     return res.status(500).json({
       success: false,
       message: "Error while creating reservation",
@@ -78,13 +94,18 @@ const createReservation = async (req, res) => {
   }
 };
 
+
 // ----------------------------
 // GET ALL RESERVATIONS
 // ----------------------------
 const getAllReservations = async (req, res) => {
   try {
     const reservations = await Reservation.findAll({
-      include: { model: Room, include: { model: RoomType, include: RoomAmenity } }
+      include: { model: Room, include: { model: RoomType, include: {
+        model: RoomAmenity,
+        as: "amenities"
+}
+ } }
     });
 
     return res.status(200).json({
@@ -108,7 +129,11 @@ const getMyReservations = async (req, res) => {
   try {
     const reservations = await Reservation.findAll({
       where: { guestEmail: req.user.email },
-      include: { model: Room, include: { model: RoomType, include: RoomAmenity } }
+      include: { model: Room, include: { model: RoomType, include: {
+        model: RoomAmenity,
+        as: "amenities"
+}
+ } }
     });
 
     return res.status(200).json({
@@ -127,7 +152,11 @@ const getMyReservations = async (req, res) => {
 const getReservationById = async (req, res) => {
   try {
     const reservation = await Reservation.findByPk(req.params.id, {
-      include: { model: Room, include: { model: RoomType, include: RoomAmenity } }
+      include: { model: Room, include: { model: RoomType, include: {
+        model: RoomAmenity,
+        as: "amenities"
+}
+ } }
     });
 
     if (!reservation) return res.status(404).json({ success: false, message: "Reservation not found" });
@@ -252,9 +281,13 @@ const deleteReservation = async (req, res) => {
 // ----------------------------
 const getReservationsByRoom = async (req, res) => {
   try {
+    console.log("Fetching reservations for roomId:", req.params);
     const reservations = await Reservation.findAll({
-      where: { roomId: req.params.roomId },
-      include: { model: Room, include: { model: RoomType, include: RoomAmenity } }
+      where: { roomId: req.params.id },
+      include: { model: Room, include: { model: RoomType, include: {
+        model: RoomAmenity,
+        as: "amenities"
+      } } }
     });
 
     return res.status(200).json({ success: true, data: reservations });

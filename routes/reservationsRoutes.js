@@ -5,7 +5,7 @@ const isAdmin = require("../helpers/isAdmin");
 const express = require("express").Router();
 
 // Create a reservation
-express.post("/reservations", authMiddleware, createReservation);
+express.post("/createReservation", authMiddleware, createReservation);
 
 // Get my reservations
 express.get("/reservations/me", authMiddleware, getMyReservations);
@@ -20,13 +20,13 @@ express.put("/reservations/me/:id", authMiddleware, updateMyReservation);
 express.patch("/reservations/me/:id/cancel", authMiddleware, cancelMyReservation);
 
 // Get all reservations
-express.get("/admin/reservations", authMiddleware, isAdmin, getAllReservations);
+express.get("/getAllReservations", authMiddleware, isAdmin, getAllReservations);
 
 // Update reservation status/payment
-express.put("/admin/reservations/:id", authMiddleware, isAdmin, updateReservation);
+express.put("/updateReservation/:id", authMiddleware, isAdmin, updateReservation);
 
 // Delete reservation
-express.delete("/admin/reservations/:id", authMiddleware, isAdmin, deleteReservation);
+express.delete("/delete/:id", authMiddleware, isAdmin, deleteReservation);
 
 // Get reservations by room
 express.get("/admin/reservations/room/:id", authMiddleware, isAdmin, getReservationsByRoom);

@@ -23,6 +23,24 @@ const Reservation = sequelize.define(
       },
     },
 
+    guestContact: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+    },
+
+    addedBy:{
+      type: DataTypes.STRING(100),
+      allowNull: false,
+    },
+
+    addedWith:{
+      type: DataTypes.STRING(150),
+      allowNull: false,
+      validate: {
+        isEmail: true,
+      },
+    },
+
     roomId: {
       type: DataTypes.UUID,
       allowNull: false,
