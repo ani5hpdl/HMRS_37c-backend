@@ -62,7 +62,7 @@ const register = async(req,res) => {
         });
 
     }catch(error){
-        res.status(500).json({
+        return res.status(500).json({
             message : "Error while Registering User",
             error : error.message
         });
@@ -72,20 +72,30 @@ const register = async(req,res) => {
 const login = async(req,res) => {
     try{
         const {email,password} = req.body;
+        console.log(req.body);
         if(!email || !password){
             return res.status(400).json({
+                success : false,
                 message : "All Fields are Required"
             });
         }
 
         const fetchUser = await User.findOne({where: {email}});
 
+        if(!fetchUser){
+            return res.status(400).json({
+                success : false,
+                message : "Password and Email Doesnot Match!!"
+            });
+        }
+
         //compare Password
         const isValidUser = await bcrypt.compare(password,fetchUser.password);
 
-        if(isValidUser){
+        if(!isValidUser){
             return res.status(400).json({
-                message : "Password and Email Doesnot Match!!"
+                success : false,
+                message : "Password and Email Doesnot Match!!!"
             });
         }
 
@@ -104,17 +114,20 @@ const login = async(req,res) => {
 
             if(!isEmailSent){
                 return res.status(400).json({
+                    success : false,
                     message : "Error while sending Verification Code"
                 });
             }
 
             return res.status(400).json({
+                success : false,
                 message : "Your Mail isnot Verified!! Go back to your Mail and Try Verifying!!"
             });
         }
 
         if(!fetchUser.isActive){
             return res.status(400).json({
+                success : false,
                 message : "No User Found"
             });
         }
@@ -123,12 +136,14 @@ const login = async(req,res) => {
         const token = generateToken(fetchUser.id,fetchUser.role);
 
         return res.status(200).json({
+            success : true,
             message : "User Login Sucessfully",
             token : token
         });
 
     }catch(error){
-        res.status(500).json({
+        return res.status(500).json({
+            success : false,
             message : "Error while Logging",
             error : error.message
         });
@@ -143,10 +158,12 @@ const logout = async(req,res) => {
         });
 
         res.status(200).json({
+            success : true,
             message : "User Logged Out Sucessfully"
         });
     }catch(error){
         res.status(500).json({
+            success : false,
             message : "Error while Logging Out",
             error : error.message
         });
@@ -159,6 +176,7 @@ const verifyEmail = async(req,res) => {
         const {token} = req.query;
         if(!token){
             return res.status(404).json({
+                success : false,
                 message : "Token is Missing"
             });
         }
@@ -166,12 +184,14 @@ const verifyEmail = async(req,res) => {
         const fetchUser =await User.findOne({where :{verificationToken : token}});
         if(!fetchUser){
             return res.status(404).json({
+                success : false,
                 message : "Invalid Token"
             });
         }
 
         if(fetchUser.verificationExpiresIn < new Date()){
             return res.status(400).json({
+                success : false,
                 message : "User Token Exipres! Please Try Logging in!!"
             });
         }
@@ -184,17 +204,45 @@ const verifyEmail = async(req,res) => {
         await fetchUser.save();
 
         return res.status(200).json({
+            success : true,
             message : "User Verified Sucessfully"
         });
 
     }catch(error){
-        res.status(500).json({
+        return res.status(500).json({
+            success : false,
             message : "Error while Verifying Email",
             error : error.message
         });
     }
 }
 
+const getMe = async(req,res) => {
+    try{
+        const userId = req.user.id;
+        const fetchUser = await User.findByPk(userId,{
+            attributes : ['id','name','email','role','isActive','isEmailVerified']
+        });
+        if(!fetchUser){
+            return res.status(404).json({
+                success : false,
+                message : "User Not Found"
+            });
+        }
+        return res.status(200).json({
+            success : true,
+            data : fetchUser
+        });
+    }catch(error){
+        return res.status(500).json({
+            success : false,
+            message : "Error while fetching User Data",
+            error : error.message
+        });
+    }
+}
+
+
 module.exports = {
-    register,login,logout,verifyEmail
+    register,login,logout,verifyEmail,getMe
 }
