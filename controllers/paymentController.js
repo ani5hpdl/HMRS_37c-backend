@@ -1,153 +1,136 @@
-const { Reservation, Room, RoomType, RoomAmenity } = require("../models");
+const { Reservation, Room, RoomType } = require("../models");
 const Payment = require("../models/paymentModel");
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-const createPayment = async(req,res) => {
-    const {reservationId, amount, isPartial, currency, paymentMethod, paymentGatewayRef, status, remarks} = req.body;
+// Create Stripe Checkout Session (redirects to Stripe's page)
+const createStripeCheckout = async(req, res) => {
+    const { reservationId, amount } = req.body;
 
-    if(!reservationId || !amount || !currency || !paymentMethod || !paymentGatewayRef || !remarks){
+    if(!reservationId || !amount) {
         return res.status(400).json({
-            success : false,
-            message : "All Fields are Required!!"
+            success: false,
+            message: "Reservation ID and Amount are required!"
         });
     }
 
     try {
+        // Create payment record first
         const newPayment = await Payment.create({
             reservationId,
-            userId : req.user.id,
+            userId: req.user.id,
             amount,
-            isPartial,
-            currency,
-            paymentMethod,
-            paymentGatewayRef,
-            status,
-            remarks
+            isPartial: false,
+            currency: 'USD',
+            paymentMethod: 'card',
+            paymentGatewayRef: 'pending',
+            status: 'initiated',
+            remarks: 'Stripe Checkout Initiated'
         });
 
-        return res.status(201).json({
-            success : true,
-            message : "Payment has been Sucessfully Added!",
-            data : newPayment
+        // Create Stripe Checkout Session
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [
+                {
+                    price_data: {
+                        currency: 'usd',
+                        product_data: {
+                            name: 'Hotel Reservation',
+                            description: `Booking ID: ${reservationId}`,
+                        },
+                        unit_amount: Math.round(amount * 100), // Convert to cents
+                    },
+                    quantity: 1,
+                },
+            ],
+            mode: 'payment',
+            success_url: `http://localhost:5173/payment-success?session_id={CHECKOUT_SESSION_ID}&reservationId=${reservationId}`,
+            cancel_url: `http://localhost:5173/payment-cancel?reservationId=${reservationId}`,
+            metadata: {
+                reservationId: reservationId,
+                userId: req.user.id.toString(),
+                paymentId: newPayment.id
+            }
+        });
+
+        // Update payment with session ID
+        await newPayment.update({
+            paymentGatewayRef: session.id
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Checkout session created!",
+            data: {
+                sessionId: session.id,
+                checkoutUrl: session.url // Stripe's hosted checkout URL
+            }
         });
     } catch (error) {
         return res.status(500).json({
-            success : false,
-            message : "Error while doing Payments!",
-            error : error.message
+            success: false,
+            message: "Error creating checkout session!",
+            error: error.message
         });
     }
 }
 
-const getAllPayments = async(req,res) => {
+// Verify Payment after redirect back
+const verifyStripePayment = async(req, res) => {
+    const { session_id } = req.query;
+
+    if(!session_id) {
+        return res.status(400).json({
+            success: false,
+            message: "Session ID is required!"
+        });
+    }
+
     try {
-        const allPayments =await Payment.findAll({
-            include : {model: Reservation,include: [{ model: Room, include: [{ model: RoomType, include: [RoomAmenity] }] }]}
+        // Retrieve session from Stripe
+        const session = await stripe.checkout.sessions.retrieve(session_id);
+
+        // Find payment in database
+        const payment = await Payment.findOne({
+            where: { paymentGatewayRef: session_id }
         });
 
-        return res.status(200).json({
-            success : true,
-            message : "All Payments are Fetched Sucessfully!",
-            data : allPayments
-        });
+        if(!payment) {
+            return res.status(404).json({
+                success: false,
+                message: "Payment not found!"
+            });
+        }
+
+        // Update payment status
+        if(session.payment_status === 'paid') {
+            await payment.update({
+                status: 'successful',
+                paidAt: new Date(),
+                remarks: 'Payment Completed via Stripe Checkout'
+            });
+
+            return res.status(200).json({
+                success: true,
+                message: "Payment verified successfully!",
+                data: payment
+            });
+        } else {
+            return res.status(400).json({
+                success: false,
+                message: "Payment not completed!"
+            });
+        }
     } catch (error) {
         return res.status(500).json({
-            success : false,
-            message : "Failed to Fetch Payments!",
-            error : error.message
+            success: false,
+            message: "Error verifying payment!",
+            error: error.message
         });
     }
 }
 
-const getPaymentsById = async(req,res) => {
-    try{
-        const id = req.params.id;
-        if(!id){
-            return res.status(400).json({
-                success : false,
-                message : "Invalid Try!!"
-            });
-        }
-
-        const fetchPayment =await Payment.findByPk({id,
-            include : {model: Reservation,include: [{ model: Room, include: [{ model: RoomType, include: [RoomAmenity] }] }]}           
-        });
-
-        return res.status(200).json({
-            success : true,
-            message : "All Payments are Fetched Sucessfully!",
-            data : fetchPayment
-        });
-
-    }catch(error){
-
-        return res.status(500).json({
-            success : false,
-            message : "Failed to Fetch Payments!",
-            error : error.message
-        });
-    }
+module.exports = {
+    createStripeCheckout,
+    verifyStripePayment
 }
-
-const getMyPayments = async(req,res) => {
-    try{
-        const fetchPayment =await Payment.findOne({where : {userId : req.user.id},
-            include : {model: Reservation,include: [{ model: Room, include: [{ model: RoomType, include: [RoomAmenity] }] }]}           
-        });
-
-        return res.status(200).json({
-            success : true,
-            message : "All Payments are Fetched Sucessfully!",
-            data : fetchPayment
-        });
-    }catch(error){
-        return res.status(500).json({
-            success : false,
-            message : "Failed to Fetch Payments",
-            error : error.message
-        });
-    }
-}
-
-const updatePayments = async(req,res) => {
-    try{
-        const {id} = req.params.id;
-        if(!id){
-            return res.status(400).json({
-                success : true,
-                message : "Invalid Try"
-            });
-        }
-        const {reservationId, amount, isPartial, currency, paymentMethod, paymentGatewayRef, status, refundAmount, remarks} = req.body;
-        if(refundAmount){
-            const refundedAt = new Date();
-        }
-
-        const fetchedPayment = await Payment.findByPk(id);
-        await fetchedPayment.update({
-            reservationId : reservationId || fetchedPayment.reservationId,
-            amount : amount || fetchedPayment.amount,
-            isPartial : isPartial || fetchedPayment.isPartial,
-            currency : currency || fetchedPayment.currency,
-            paymentMethod : paymentMethod || fetchedPayment.paymentMethod,
-            paymentGatewayRef : paymentGatewayRef || fetchedPayment.paymentGatewayRef,
-            status : status || fetchedPayment.status,
-            refundAmount : refundAmount || fetchedPayment.refundAmount,
-            refundedAt : refundedAt || fetchedPayment.refundedAt,
-            remarks : remarks || fetchedPayment.remarks
-        });
-
-        return res.status(200).json({
-            success : true,
-            message : "Payment Updated Sucessfully",
-            data : fetchedPayment
-        });
-    }catch(error){
-        return res.status(500).json({
-            success : false,
-            message : "Failed to Update Payments",
-            error : error.message
-        });
-    }
-}
-
-module.exports = {createPayment,getAllPayments,getPaymentsById,getMyPayments,updatePayments}

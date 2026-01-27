@@ -1,13 +1,16 @@
-const { createPayment, getAllPayments, getPaymentsById, getMyPayments, updatePayments } = require("../controllers/paymentController");
+const { 
+    createStripeCheckout,
+    verifyStripePayment
+} = require("../controllers/paymentController");
 const authMiddleware = require("../helpers/authMiddleware");
-const isAdmin = require("../helpers/isAdmin");
 
-const express = require("express").Router();
+const express = require("express");
+const router = express.Router();
 
-express.post("/createPayments",authMiddleware,isAdmin,createPayment);
-express.get("/getallPayments",authMiddleware,isAdmin,getAllPayments);
-express.get("/getPayments/:id",authMiddleware,isAdmin,getPaymentsById);
-express.get("/getMyPayments/:id",authMiddleware,getMyPayments);
-express.post("/updatePayments/:id",authMiddleware,isAdmin,updatePayments);
+// Create checkout session and get Stripe URL
+router.post("/stripe/create-checkout", authMiddleware, createStripeCheckout);
 
-module.exports=express;
+// Verify payment after user returns from Stripe
+router.get("/stripe/verify-payment", authMiddleware, verifyStripePayment);
+
+module.exports = router;
