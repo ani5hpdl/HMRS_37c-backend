@@ -14,7 +14,7 @@ const isAdmin = require("../helpers/isAdmin");
 router.post("/createRoomType", authMiddleware, isAdmin, createRoomType);
 
 // Get all RoomTypes (any authenticated user)
-router.get("/getAllRoomTypes", authMiddleware, getAllRoomTypes);
+router.get("/getAllRoomTypes", getAllRoomTypes);
 
 // Update RoomType (Admin only)
 router.put("/updateRoomType/:id", authMiddleware, isAdmin, updateRoomType);
