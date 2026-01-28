@@ -128,7 +128,7 @@ const getAllReservations = async (req, res) => {
 const getMyReservations = async (req, res) => {
   try {
     const reservations = await Reservation.findAll({
-      where: { guestEmail: req.user.email },
+      where: { addedWith: req.user.email },
       include: { model: Room, include: { model: RoomType, include: {
         model: RoomAmenity,
         as: "amenities"
@@ -199,7 +199,7 @@ const updateMyReservation = async (req, res) => {
     const reservation = await Reservation.findByPk(id);
     if (!reservation) return res.status(404).json({ success: false, message: "Reservation not found" });
 
-    if (reservation.guestEmail !== req.user.email)
+    if (reservation.addedWith !== req.user.email)
       return res.status(403).json({ success: false, message: "Not authorized" });
 
     // Validate and check date overlap
@@ -231,7 +231,14 @@ const updateMyReservation = async (req, res) => {
     reservation.checkInDate = newCheckIn;
     reservation.checkOutDate = newCheckOut;
     if (specialRequest !== undefined) reservation.specialRequest = specialRequest;
-    if (totalGuests !== undefined) reservation.totalGuests = totalGuests;
+    if (totalGuests !== undefined) {
+  const guestsNum = parseInt(totalGuests, 10);
+  if (isNaN(guestsNum)) {
+    return res.status(400).json({ success: false, message: "Invalid totalGuests value" });
+  }
+  reservation.totalGuests = guestsNum;
+}
+
 
     await reservation.save();
 
@@ -249,7 +256,7 @@ const cancelMyReservation = async (req, res) => {
     const reservation = await Reservation.findByPk(req.params.id);
     if (!reservation) return res.status(404).json({ success: false, message: "Reservation not found" });
 
-    if (reservation.guestEmail !== req.user.email)
+    if (reservation.addedWith !== req.user.email)
       return res.status(403).json({ success: false, message: "Not authorized" });
 
     reservation.status = "cancelled";
