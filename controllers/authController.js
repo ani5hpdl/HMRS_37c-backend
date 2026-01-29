@@ -3,7 +3,7 @@ const generateToken = require("../helpers/generateToken");
 const User = require("../models/userModel")
 const bcrypt = require("bcrypt")
 const crypto = require("crypto");
-const {sendEmail,verificationEmailTemplate} = require("../helpers/sendEmail");
+const {sendEmail,verificationEmailTemplate, forgetPasswordTemplate} = require("../helpers/sendEmail");
 
 const register = async(req,res) => {
     try{
@@ -242,7 +242,61 @@ const getMe = async(req,res) => {
     }
 }
 
+const forgetPassword = async(req,res) => {
+    try{
+        const {email} = req.body;
+        if( !email){
+            return res.status(400).json({
+                success : false,
+                message : "Fill up the form First!"
+            });
+        }
 
-module.exports = {
-    register,login,logout,verifyEmail,getMe
+        const userExists =await User.findOne({where : {
+            email : email,
+            isActive : true
+        }});
+
+        console.log(userExists);
+
+        if(!userExists){
+            return res.status(400).json({
+                success : false,
+                message : "Invalid Attempts"
+            });
+        }
+
+        //Verification Token
+        userExists.verificationToken = await crypto.randomBytes(32).toString('hex');
+
+        userExists.verificationExpiresIn = new Date(Date.now() + 1 * 60 * 60 * 1000);
+
+        userExists.save();
+
+        const verificationLink = `http://localhost:5173/resetpassword?token=${userExists.verificationToken}&email=${email}`;
+
+        const html = forgetPasswordTemplate(userExists.name,verificationLink);
+
+        //Send Email  to the user email to verify 
+        const isEmailSent =await sendEmail(email,"Reset Password Email",html);
+
+        if(!isEmailSent){
+            return res.status(400).json({
+                message : "Error while sending Verification Code"
+            });
+        }
+        
+        return res.status(200).json({
+            success : true,
+            message : "Mail Sent Sucessfully ! Check there"
+        });
+
+    }catch(error){
+        return res.status(500).json({
+            success : false,
+            message : "Error in Forget Password",
+            error : error.message
+        });
+    }
 }
+
