@@ -299,4 +299,65 @@ const forgetPassword = async(req,res) => {
         });
     }
 }
+const verifyResetPassword = async(req,res) => {
+    try{
+        console.log(req.body);
+        const {token,email} = req.query;
+        const {password, confirmPassword} = req.body;
 
+        if(!token || !email){
+            return res.status(404).json({
+                success : false,
+                message : "Invalid attempts"
+            });
+        }
+
+        if(password !== confirmPassword){
+            return res.status(400).json({
+                success : false,
+                message : "Password and Confirm Password Doesnot Match!!"
+            });
+        }
+
+        const fetchUser =await User.findOne({where :{verificationToken : token, email : email}});
+        if(!fetchUser){
+            return res.status(404).json({
+                success : false,
+                message : "Invalid Token or User"
+            });
+        }
+
+        if(fetchUser.verificationExpiresIn < new Date()){
+            return res.status(400).json({
+                success : false,
+                message : "User Token Exipres! Please Try Logging in!!"
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(password,10);
+
+        //Set verified email true and other verification values to null as Verification ends after being verified
+        await fetchUser.update({
+            password : hashedPassword,
+            verificationToken : null,
+            verificationExpiresIn : null
+        });
+        await fetchUser.save();
+
+        return res.status(200).json({
+            success : true,
+            message : "User Password Changed "
+        });
+
+    }catch(error){
+        return res.status(500).json({
+            success : false,
+            message : "Error while Verifying Email",
+            error : error.message
+        });
+    }
+}
+
+module.exports = {
+    register,login,logout,verifyEmail,getMe,forgetPassword, verifyResetPassword
+}
